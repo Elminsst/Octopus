@@ -195,6 +195,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
           <div class="field"><label id="m-platform-title">渠道</label><div class="picker" id="platform-picker"><button class="picker-btn" id="m-platform-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-platform-title m-platform-label"><span class="picker-label" id="m-platform-label">选择渠道</span><span class="chev">▼</span></button><div class="picker-menu" id="m-platform-menu" role="listbox" aria-labelledby="m-platform-title"></div></div></div>
           <div class="field"><label for="m-original">原始模型名</label><input id="m-original" type="text" placeholder="从右侧选择，或手动输入"></div>
           <div class="field"><label for="m-custom">自定义模型名</label><input id="m-custom" type="text" placeholder="例如：fast-gpt-4o"></div>
+          <div class="field"><label id="m-type-title">类型</label><div class="picker" id="type-picker"><button class="picker-btn" id="m-type-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-type-title m-type-label"><span class="picker-label" id="m-type-label">对话模型（Chat）</span><span class="chev">▼</span></button><div class="picker-menu" id="m-type-menu" role="listbox" aria-labelledby="m-type-title"></div></div></div>
           <div class="row">
             <button class="btn success" id="add-mapping">保存映射</button>
             <button class="btn secondary" id="refresh-models" type="button">刷新模型</button>
@@ -252,6 +253,8 @@ var base=window.location.origin;
 var adminKey=localStorage.getItem('ai_proxy_admin_key')||'';
 var platforms=[],mappings=[],availableModels=[],availablePlatform='',selectedPlatformId='';
 var selectedMappingIds={};
+var selectedMappingType='chat';
+var MAPPING_TYPES=[{id:'chat',label:'对话模型（Chat）'},{id:'image',label:'绘图模型（Image）'}];
 
 function $(id){return document.getElementById(id)}
 function esc(v){var d=document.createElement('div');d.textContent=v==null?'':String(v);return d.innerHTML}
@@ -348,6 +351,33 @@ function selectPlatform(id){
   renderPlatformSelect();
   renderAvailable();
 }
+function renderTypeMenu(){
+  var menu=$('m-type-menu');menu.innerHTML='';
+  MAPPING_TYPES.forEach(function(t){
+    var b=document.createElement('button');
+    b.className='picker-option'+(t.id===selectedMappingType?' selected':'');
+    b.type='button';
+    b.setAttribute('role','option');
+    b.setAttribute('aria-selected',t.id===selectedMappingType?'true':'false');
+    b.textContent=t.label;
+    b.onclick=function(){selectMappingType(t.id)};
+    menu.appendChild(b);
+  });
+}
+function setTypePickerOpen(open){
+  $('m-type-menu').classList.toggle('open',open);
+  $('m-type-btn').classList.toggle('open',open);
+  $('m-type-btn').setAttribute('aria-expanded',open?'true':'false');
+}
+function selectMappingType(id){
+  selectedMappingType=id;
+  var t=MAPPING_TYPES.find(function(x){return x.id===id});
+  $('m-type-label').textContent=t?t.label:'类型';
+  setTypePickerOpen(false);
+  renderTypeMenu();
+}
+function typeLabel(type){var t=MAPPING_TYPES.find(function(x){return x.id===type});return t?t.label:'对话模型（Chat）'}
+function typePath(type){return type==='image'?'/v1/images/generations':'/v1/chat/completions'}
 function renderTestModels(){
   var list=$('test-list');list.innerHTML='';
   if(!mappings.length){list.innerHTML=empty('还没有可测试的模型。先添加模型映射。');updateSelectionControls();return}
@@ -368,7 +398,7 @@ function renderTestModels(){
       var item=document.createElement('div');item.className='model-card';
       var check=document.createElement('button');check.className='check-btn'+(selectedMappingIds[m.id]?' on':'');check.type='button';check.title='选择';check.setAttribute('aria-pressed',selectedMappingIds[m.id]?'true':'false');check.innerHTML=icon('check');check.onclick=function(){selectedMappingIds[m.id]=!selectedMappingIds[m.id];if(!selectedMappingIds[m.id])delete selectedMappingIds[m.id];renderTestModels()};
       var main=document.createElement('div');main.className='model-card-main';
-      main.innerHTML='<h4>'+esc(m.customName)+'</h4><p>原始模型：'+esc(m.originalName)+'</p><div class="model-meta"><span class="pill">'+esc(names[m.platformId]||'未知平台')+'</span><span class="pill">/v1/chat/completions</span></div>';
+      main.innerHTML='<h4>'+esc(m.customName)+'</h4><p>原始模型：'+esc(m.originalName)+'</p><div class="model-meta"><span class="pill">'+esc(names[m.platformId]||'未知平台')+'</span><span class="pill">'+typeLabel(m.type)+'</span><span class="pill">'+typePath(m.type)+'</span></div>';
       var actions=document.createElement('div');actions.className='model-card-actions';
       var test=document.createElement('button');test.className='btn success small';test.title='测试';test.setAttribute('aria-label','测试 '+m.customName);test.textContent='测试';test.onclick=function(){testMapping(m.id)};
       var edit=document.createElement('button');edit.className='btn secondary small';edit.title='编辑';edit.setAttribute('aria-label','编辑 '+m.customName);edit.textContent='编辑';edit.onclick=function(){editMapping(idx)};
@@ -412,14 +442,14 @@ async function refreshModels(){
   try{var data=await api('/api/platforms/'+encodeURIComponent(pid)+'/models');availableModels=data.models||[];availablePlatform=data.platformName||'';renderAvailable();toast('模型列表已刷新')}catch(e){availableModels=[];availablePlatform='';$('available-models').innerHTML=empty(e.message)}
 }
 async function addMapping(){
-  var body={platformId:selectedPlatformId,originalName:$('m-original').value.trim(),customName:$('m-custom').value.trim()};
+  var body={platformId:selectedPlatformId,originalName:$('m-original').value.trim(),customName:$('m-custom').value.trim(),type:selectedMappingType};
   if(!body.platformId||!body.originalName||!body.customName){toast('请填写完整映射信息');return}
   try{await api('/api/mappings',{method:'POST',body:JSON.stringify(body)});$('m-original').value='';$('m-custom').value='';toast('映射已添加');await loadAll();renderAvailable()}catch(e){toast(e.message)}
 }
 function editMapping(idx){
   var m=mappings[idx];
   openModal('编辑模型名','<div class="field"><label>原始模型</label><input type="text" value="'+esc(m.originalName)+'" disabled></div><div class="field"><label for="edit-custom">自定义模型名</label><input id="edit-custom" type="text" value="'+esc(m.customName)+'"></div>',async function(){
-    try{await api('/api/mappings/'+encodeURIComponent(m.id),{method:'PUT',body:JSON.stringify({customName:$('edit-custom').value.trim()})});closeModal();toast('映射已更新');await loadAll();renderAvailable()}catch(e){toast(e.message)}
+    try{await api('/api/mappings/'+encodeURIComponent(m.id),{method:'PUT',body:JSON.stringify({customName:$('edit-custom').value.trim(),type:m.type})});closeModal();toast('映射已更新');await loadAll();renderAvailable()}catch(e){toast(e.message)}
   });
 }
 function deleteMapping(id){confirmModal('删除模型映射','确定删除这个模型映射？',async function(){try{await api('/api/mappings/'+encodeURIComponent(id),{method:'DELETE'});closeModal();toast('映射已删除');await loadAll();renderAvailable()}catch(e){toast(e.message)}})}
@@ -430,12 +460,24 @@ function bulkDeleteMappings(){var ids=Object.keys(selectedMappingIds).filter(fun
 function testMapping(id){
   var m=mappings.find(function(x){return x.id===id});
   if(!m){toast('模型映射不存在');return}
-  openModal('测试 '+m.customName,'<div class="field"><label for="test-prompt">测试提示词</label><textarea id="test-prompt" placeholder="输入一句测试内容">请用一句话回复：连接测试成功。</textarea></div><div class="test-result" id="test-result">测试结果会显示在这里。</div>',async function(){
+  var isImage=m.type==='image';
+  var defaultPrompt=isImage?'一只在草地上奔跑的柯基犬，卡通风格':'请用一句话回复：连接测试成功。';
+  var body='<div class="field"><label for="test-prompt">测试提示词</label><textarea id="test-prompt" placeholder="输入一句测试内容">'+esc(defaultPrompt)+'</textarea></div>'
+    +(isImage?'<div class="field"><label for="test-size">图片尺寸</label><input id="test-size" type="text" placeholder="1024x1024" value="1024x1024"></div>':'')
+    +'<div class="test-result" id="test-result">测试结果会显示在这里。</div>';
+  openModal('测试 '+m.customName,body,async function(){
     var result=$('test-result');result.className='test-result';result.textContent='正在请求上游模型...';
     try{
-      var data=await api('/api/test',{method:'POST',body:JSON.stringify({mappingId:id,prompt:$('test-prompt').value.trim()})});
+      var payload={mappingId:id,prompt:$('test-prompt').value.trim()};
+      if(isImage){var sizeEl=$('test-size');if(sizeEl)payload.size=sizeEl.value.trim()}
+      var data=await api('/api/test',{method:'POST',body:JSON.stringify(payload)});
       result.className='test-result ok';
-      result.textContent=(data.content||'上游返回为空')+'\\n\\n状态：'+data.status+' · 平台：'+data.platformName;
+      if(data.type==='image'&&data.image){
+        var src=data.image.kind==='b64'?('data:image/png;base64,'+data.image.value):data.image.value;
+        result.innerHTML='<img src="'+src+'" alt="生成结果" style="max-width:100%;border-radius:12px;display:block;margin-bottom:8px">状态：'+data.status+' · 平台：'+esc(data.platformName);
+      }else{
+        result.textContent=(data.content||'上游返回为空')+'\\n\\n状态：'+data.status+' · 平台：'+data.platformName;
+      }
     }catch(e){
       result.className='test-result bad';
       result.textContent=e.message;
@@ -458,6 +500,8 @@ $('select-all-models').onclick=toggleSelectAllModels;
 $('bulk-delete-models').onclick=bulkDeleteMappings;
 $('m-platform-btn').onclick=function(e){e.stopPropagation();setPickerOpen(!$('m-platform-menu').classList.contains('open'))};
 $('platform-picker').onclick=function(e){e.stopPropagation()};
+$('m-type-btn').onclick=function(e){e.stopPropagation();setTypePickerOpen(!$('m-type-menu').classList.contains('open'))};
+$('type-picker').onclick=function(e){e.stopPropagation()};
 $('modal').onclick=function(e){if(e.target===$('modal'))closeModal()};
 $('theme-toggle').onclick=toggleTheme;
 $('endpoint-copy').onclick=function(e){if(e.target===$('theme-toggle'))return;copyEndpoint()};
@@ -465,11 +509,12 @@ $('endpoint-copy').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.prev
 $('login-submit').onclick=submitLogin;
 $('login-clear').onclick=clearLogin;
 $('login-key').onkeydown=function(e){if(e.key==='Enter')submitLogin()};
-document.addEventListener('click',function(){setPickerOpen(false)});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();setPickerOpen(false)}});
+document.addEventListener('click',function(){setPickerOpen(false);setTypePickerOpen(false)});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();setPickerOpen(false);setTypePickerOpen(false)}});
 initTheme();
 updateClock();
 setInterval(updateClock,30000);
+renderTypeMenu();
 if(adminKey){
   verifyAdminKey().then(function(){hideLogin();loadAll()}).catch(function(){localStorage.removeItem('ai_proxy_admin_key');adminKey='';showLogin('本机保存的管理密钥已失效，请重新输入。')});
 }else{
@@ -621,6 +666,7 @@ async function validateMapping(env, input, existingId = null) {
   const platformId = cleanString(input.platformId);
   const originalName = cleanString(input.originalName);
   const customName = cleanString(input.customName);
+  const type = cleanString(input.type) === 'image' ? 'image' : 'chat';
   if (!platformId) throw new Error('请选择平台。');
   if (!originalName) throw new Error('原始模型名不能为空。');
   if (!customName) throw new Error('自定义模型名不能为空。');
@@ -630,7 +676,7 @@ async function validateMapping(env, input, existingId = null) {
   if (mappings.some(m => m.customName === customName && m.id !== existingId)) {
     throw new Error('自定义模型名已存在，请换一个名称。');
   }
-  return { platformId, originalName, customName };
+  return { platformId, originalName, customName, type };
 }
 
 async function resolveRoute(env, options) {
@@ -674,11 +720,55 @@ function extractChatContent(data) {
   return '';
 }
 
+// Extracts an OpenAI-style /v1/images/generations result: either a base64
+// payload (b64_json) or a hosted URL (url), depending on what the upstream
+// image model returns.
+function extractImageResult(data) {
+  const item = data && Array.isArray(data.data) ? data.data[0] : null;
+  if (!item) return null;
+  if (item.b64_json) return { kind: 'b64', value: item.b64_json };
+  if (item.url) return { kind: 'url', value: item.url };
+  return null;
+}
+
 async function runMappingTest(env, input) {
   const mappingId = cleanString(input.mappingId);
   const customName = cleanString(input.customName);
-  const prompt = cleanString(input.prompt) || '请用一句话回复：连接测试成功。';
   const { mapping, platform } = await resolveRoute(env, { mappingId, customName });
+  const isImage = mapping.type === 'image';
+  const prompt = cleanString(input.prompt) || (isImage ? '一只在草地上奔跑的柯基犬，卡通风格' : '请用一句话回复：连接测试成功。');
+
+  if (isImage) {
+    const res = await fetch(buildUpstreamUrl(platform, '/images/generations'), {
+      method: 'POST',
+      headers: upstreamJsonHeaders(platform),
+      body: JSON.stringify({
+        model: mapping.originalName,
+        prompt,
+        n: 1,
+        size: cleanString(input.size) || '1024x1024',
+        response_format: 'b64_json'
+      })
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (err) {}
+    if (!res.ok) {
+      const message = (data && data.error && (data.error.message || data.error)) || text || `上游返回 ${res.status}`;
+      throw new Error(String(message).slice(0, 500));
+    }
+    const image = extractImageResult(data);
+    if (!image) throw new Error('上游没有返回图片数据，可能该模型的接口不是 OpenAI 兼容格式，请检查 build.nvidia.com 上该模型的 API Reference。');
+    return {
+      ok: true,
+      status: res.status,
+      platformName: platform.name,
+      customName: mapping.customName,
+      originalName: mapping.originalName,
+      type: 'image',
+      image
+    };
+  }
 
   const res = await fetch(buildUpstreamUrl(platform, '/chat/completions'), {
     method: 'POST',
@@ -703,6 +793,7 @@ async function runMappingTest(env, input) {
     platformName: platform.name,
     customName: mapping.customName,
     originalName: mapping.originalName,
+    type: 'chat',
     content: extractChatContent(data) || text.slice(0, 1000)
   };
 }
