@@ -862,6 +862,24 @@ function extractGenaiImageResult(data) {
   return null;
 }
 
+async function fetchOpenAiImage(platform, mapping, prompt, size) {
+  const res = await fetch(buildUpstreamUrl(platform, '/images/generations'), {
+    method: 'POST',
+    headers: upstreamJsonHeaders(platform),
+    body: JSON.stringify({
+      model: mapping.originalName,
+      prompt,
+      n: 1,
+      size: cleanString(size) || '1024x1024',
+      response_format: 'b64_json'
+    })
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (err) {}
+  return { res, data, text };
+}
+
 async function runMappingTest(env, input) {
   const mappingId = cleanString(input.mappingId);
   const customName = cleanString(input.customName);
@@ -877,29 +895,34 @@ async function runMappingTest(env, input) {
           headers: upstreamJsonHeaders(platform),
           body: JSON.stringify(toGenaiRequestBody({ prompt, size: input.size, steps: input.steps, n: input.n, seed: input.seed }))
         })
-      : await fetch(buildUpstreamUrl(platform, '/images/generations'), {
-          method: 'POST',
-          headers: upstreamJsonHeaders(platform),
-          body: JSON.stringify({
-            model: mapping.originalName,
-            prompt,
-            n: 1,
-            size: cleanString(input.size) || '1024x1024',
-            response_format: 'b64_json'
-          })
-        });
-    const text = await res.text();
+      : null;
+    let text = '';
     let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch (err) {}
-    if (!res.ok) {
-      const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `上游返回 ${res.status}`;
+    let actualRes = res;
+    if (res) {
+      text = await res.text();
+      try { data = text ? JSON.parse(text) : null; } catch (err) {}
+    } else {
+      const openAi = await fetchOpenAiImage(platform, mapping, prompt, input.size);
+      actualRes = openAi.res;
+      text = openAi.text;
+      data = openAi.data;
+    }
+    if (actualRes.status === 404 && isGenai) {
+      const openAi = await fetchOpenAiImage(platform, mapping, prompt, input.size);
+      actualRes = openAi.res;
+      text = openAi.text;
+      data = openAi.data;
+    }
+    if (!actualRes.ok) {
+      const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `上游返回 ${actualRes.status}`;
       throw new Error(String(message).slice(0, 500));
     }
     const image = isGenai ? extractGenaiImageResult(data) : extractImageResult(data);
     if (!image) throw new Error('上游没有返回可识别的图片数据，请检查该模型在 build.nvidia.com 上的 API Reference，确认接口风格和字段是否匹配。');
     return {
       ok: true,
-      status: res.status,
+      status: actualRes.status,
       platformName: platform.name,
       customName: mapping.customName,
       originalName: mapping.originalName,
@@ -1109,14 +1132,24 @@ async function handleImageProxy(request, env) {
 
   try {
     if (mapping.imageApi === 'genai') {
-      const upstream = await fetch(buildGenaiInvokeUrl(platform, mapping), {
+      let upstream = await fetch(buildGenaiInvokeUrl(platform, mapping), {
         method: 'POST',
         headers: upstreamJsonHeaders(platform),
         body: JSON.stringify(toGenaiRequestBody(body))
       });
-      const text = await upstream.text();
+      let text = await upstream.text();
       let data = null;
       try { data = text ? JSON.parse(text) : null; } catch (err) {}
+      if (upstream.status === 404) {
+        upstream = await fetch(buildUpstreamUrl(platform, '/images/generations'), {
+          method: 'POST',
+          headers: upstreamJsonHeaders(platform, request.headers.get('Accept')),
+          body: JSON.stringify({ ...body, model: mapping.originalName })
+        });
+        text = await upstream.text();
+        data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (err) {}
+      }
       if (!upstream.ok) {
         const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `Upstream returned ${upstream.status}`;
         return errorResponse(String(message).slice(0, 500), upstream.status, 'upstream_error');
