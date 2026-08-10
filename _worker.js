@@ -196,6 +196,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
           <div class="field"><label for="m-original">原始模型名</label><input id="m-original" type="text" placeholder="从右侧选择，或手动输入"></div>
           <div class="field"><label for="m-custom">自定义模型名</label><input id="m-custom" type="text" placeholder="例如：fast-gpt-4o"></div>
           <div class="field"><label id="m-type-title">类型</label><div class="picker" id="type-picker"><button class="picker-btn" id="m-type-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-type-title m-type-label"><span class="picker-label" id="m-type-label">对话模型（Chat）</span><span class="chev">▼</span></button><div class="picker-menu" id="m-type-menu" role="listbox" aria-labelledby="m-type-title"></div></div></div>
+          <div class="field" id="image-api-field" style="display:none"><label id="m-api-title">绘图接口风格</label><div class="picker" id="api-picker"><button class="picker-btn" id="m-api-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-api-title m-api-label"><span class="picker-label" id="m-api-label">OpenAI 兼容（/v1/images/generations）</span><span class="chev">▼</span></button><div class="picker-menu" id="m-api-menu" role="listbox" aria-labelledby="m-api-title"></div></div><p class="hint" style="margin-top:8px;margin-bottom:0">新版 NVIDIA 网关（如 integrate.api.nvidia.com）选 OpenAI 兼容；老式 ai.api.nvidia.com 的 /v1/genai/[model] 调用方式选传统 genai 端点。</p></div>
           <div class="row">
             <button class="btn success" id="add-mapping">保存映射</button>
             <button class="btn secondary" id="refresh-models" type="button">刷新模型</button>
@@ -255,6 +256,18 @@ var platforms=[],mappings=[],availableModels=[],availablePlatform='',selectedPla
 var selectedMappingIds={};
 var selectedMappingType='chat';
 var MAPPING_TYPES=[{id:'chat',label:'对话模型（Chat）'},{id:'image',label:'绘图模型（Image）'}];
+var selectedImageApi='openai';
+var IMAGE_API_STYLES=[{id:'openai',label:'OpenAI 兼容（/v1/images/generations）'},{id:'genai',label:'传统 genai 端点（/v1/genai/[model]）'}];
+// NVIDIA 的 /v1/models 目录接口不会返回绘图模型，只能手动列出已知的常用绘图模型 ID（均来自
+// build.nvidia.com 各模型详情页 API Reference 中的 model 字段）。想用列表外的模型，仍可以在
+// “原始模型名”里手动输入。
+var NVIDIA_IMAGE_MODELS=[
+  {id:'black-forest-labs/flux.1-dev',label:'FLUX.1-dev'},
+  {id:'black-forest-labs/flux.1-schnell',label:'FLUX.1-schnell'},
+  {id:'black-forest-labs/flux.1-kontext-dev',label:'FLUX.1-Kontext-dev（图片编辑）'},
+  {id:'black-forest-labs/flux.2-klein-4b',label:'FLUX.2-klein-4B'},
+  {id:'stabilityai/stable-diffusion-3.5-large',label:'Stable Diffusion 3.5 Large'}
+];
 
 function $(id){return document.getElementById(id)}
 function esc(v){var d=document.createElement('div');d.textContent=v==null?'':String(v);return d.innerHTML}
@@ -375,9 +388,39 @@ function selectMappingType(id){
   $('m-type-label').textContent=t?t.label:'类型';
   setTypePickerOpen(false);
   renderTypeMenu();
+  renderAvailable();
+  updateImageApiVisibility();
+}
+function updateImageApiVisibility(){
+  $('image-api-field').style.display=selectedMappingType==='image'?'':'none';
+}
+function renderApiMenu(){
+  var menu=$('m-api-menu');menu.innerHTML='';
+  IMAGE_API_STYLES.forEach(function(t){
+    var b=document.createElement('button');
+    b.className='picker-option'+(t.id===selectedImageApi?' selected':'');
+    b.type='button';
+    b.setAttribute('role','option');
+    b.setAttribute('aria-selected',t.id===selectedImageApi?'true':'false');
+    b.textContent=t.label;
+    b.onclick=function(){selectImageApi(t.id)};
+    menu.appendChild(b);
+  });
+}
+function setApiPickerOpen(open){
+  $('m-api-menu').classList.toggle('open',open);
+  $('m-api-btn').classList.toggle('open',open);
+  $('m-api-btn').setAttribute('aria-expanded',open?'true':'false');
+}
+function selectImageApi(id){
+  selectedImageApi=id;
+  var t=IMAGE_API_STYLES.find(function(x){return x.id===id});
+  $('m-api-label').textContent=t?t.label:'接口风格';
+  setApiPickerOpen(false);
+  renderApiMenu();
 }
 function typeLabel(type){var t=MAPPING_TYPES.find(function(x){return x.id===type});return t?t.label:'对话模型（Chat）'}
-function typePath(type){return type==='image'?'/v1/images/generations':'/v1/chat/completions'}
+function typePath(m){if(m.type!=='image')return '/v1/chat/completions';return m.imageApi==='genai'?'/v1/genai/[model]':'/v1/images/generations'}
 function renderTestModels(){
   var list=$('test-list');list.innerHTML='';
   if(!mappings.length){list.innerHTML=empty('还没有可测试的模型。先添加模型映射。');updateSelectionControls();return}
@@ -398,7 +441,7 @@ function renderTestModels(){
       var item=document.createElement('div');item.className='model-card';
       var check=document.createElement('button');check.className='check-btn'+(selectedMappingIds[m.id]?' on':'');check.type='button';check.title='选择';check.setAttribute('aria-pressed',selectedMappingIds[m.id]?'true':'false');check.innerHTML=icon('check');check.onclick=function(){selectedMappingIds[m.id]=!selectedMappingIds[m.id];if(!selectedMappingIds[m.id])delete selectedMappingIds[m.id];renderTestModels()};
       var main=document.createElement('div');main.className='model-card-main';
-      main.innerHTML='<h4>'+esc(m.customName)+'</h4><p>原始模型：'+esc(m.originalName)+'</p><div class="model-meta"><span class="pill">'+esc(names[m.platformId]||'未知平台')+'</span><span class="pill">'+typeLabel(m.type)+'</span><span class="pill">'+typePath(m.type)+'</span></div>';
+      main.innerHTML='<h4>'+esc(m.customName)+'</h4><p>原始模型：'+esc(m.originalName)+'</p><div class="model-meta"><span class="pill">'+esc(names[m.platformId]||'未知平台')+'</span><span class="pill">'+typeLabel(m.type)+'</span><span class="pill">'+typePath(m)+'</span></div>';
       var actions=document.createElement('div');actions.className='model-card-actions';
       var test=document.createElement('button');test.className='btn success small';test.title='测试';test.setAttribute('aria-label','测试 '+m.customName);test.textContent='测试';test.onclick=function(){testMapping(m.id)};
       var edit=document.createElement('button');edit.className='btn secondary small';edit.title='编辑';edit.setAttribute('aria-label','编辑 '+m.customName);edit.textContent='编辑';edit.onclick=function(){editMapping(idx)};
@@ -412,6 +455,19 @@ function renderTestModels(){
 }
 function renderAvailable(){
   var box=$('available-models');var pid=selectedPlatformId;var q=$('model-search').value.trim().toLowerCase();
+  if(selectedMappingType==='image'){
+    var existingImg={};mappings.forEach(function(m){if(m.platformId===pid)existingImg[m.originalName]=m.customName});
+    var imgRows=NVIDIA_IMAGE_MODELS.filter(function(x){return !q||x.id.toLowerCase().indexOf(q)!==-1||x.label.toLowerCase().indexOf(q)!==-1});
+    if(!imgRows.length){box.innerHTML=empty('内置列表里没有匹配的绘图模型，可直接在“原始模型名”手动输入完整 ID。');return}
+    box.innerHTML='';
+    imgRows.forEach(function(x){
+      var b=document.createElement('button');b.className='model-row';b.type='button';b.setAttribute('data-model',x.id);
+      b.innerHTML='<strong>'+esc(x.label)+(existingImg[x.id]?'<span class="badge">已映射 '+esc(existingImg[x.id])+'</span>':'')+'</strong><span>'+esc(x.id)+'</span>';
+      b.onclick=function(){$('m-original').value=x.id;document.querySelectorAll('.model-row').forEach(function(y){y.classList.remove('sel')});b.classList.add('sel')};
+      box.appendChild(b);
+    });
+    return;
+  }
   if(!availableModels.length){box.innerHTML=empty(pid?'点击“刷新模型”拉取上游列表。':'先选择一个渠道。');return}
   var existing={};mappings.forEach(function(m){if(m.platformId===pid)existing[m.originalName]=m.customName});
   var rows=availableModels.filter(function(m){return !q||m.toLowerCase().indexOf(q)!==-1});
@@ -438,18 +494,19 @@ function editPlatform(idx){
 function deletePlatform(id){confirmModal('删除渠道','删除渠道会同时删除它的模型映射，确定继续？',async function(){try{await api('/api/platforms/'+encodeURIComponent(id),{method:'DELETE'});closeModal();toast('渠道已删除');await loadAll()}catch(e){toast(e.message)}})}
 async function refreshModels(){
   var pid=selectedPlatformId;if(!pid){toast('请先选择渠道');return}
+  if(selectedMappingType==='image'){toast('绘图模型不在上游 /v1/models 列表里，已为你展示内置常用模型');renderAvailable();return}
   setLoading($('available-models'),'读取上游模型');
   try{var data=await api('/api/platforms/'+encodeURIComponent(pid)+'/models');availableModels=data.models||[];availablePlatform=data.platformName||'';renderAvailable();toast('模型列表已刷新')}catch(e){availableModels=[];availablePlatform='';$('available-models').innerHTML=empty(e.message)}
 }
 async function addMapping(){
-  var body={platformId:selectedPlatformId,originalName:$('m-original').value.trim(),customName:$('m-custom').value.trim(),type:selectedMappingType};
+  var body={platformId:selectedPlatformId,originalName:$('m-original').value.trim(),customName:$('m-custom').value.trim(),type:selectedMappingType,imageApi:selectedImageApi};
   if(!body.platformId||!body.originalName||!body.customName){toast('请填写完整映射信息');return}
   try{await api('/api/mappings',{method:'POST',body:JSON.stringify(body)});$('m-original').value='';$('m-custom').value='';toast('映射已添加');await loadAll();renderAvailable()}catch(e){toast(e.message)}
 }
 function editMapping(idx){
   var m=mappings[idx];
   openModal('编辑模型名','<div class="field"><label>原始模型</label><input type="text" value="'+esc(m.originalName)+'" disabled></div><div class="field"><label for="edit-custom">自定义模型名</label><input id="edit-custom" type="text" value="'+esc(m.customName)+'"></div>',async function(){
-    try{await api('/api/mappings/'+encodeURIComponent(m.id),{method:'PUT',body:JSON.stringify({customName:$('edit-custom').value.trim(),type:m.type})});closeModal();toast('映射已更新');await loadAll();renderAvailable()}catch(e){toast(e.message)}
+    try{await api('/api/mappings/'+encodeURIComponent(m.id),{method:'PUT',body:JSON.stringify({customName:$('edit-custom').value.trim(),type:m.type,imageApi:m.imageApi})});closeModal();toast('映射已更新');await loadAll();renderAvailable()}catch(e){toast(e.message)}
   });
 }
 function deleteMapping(id){confirmModal('删除模型映射','确定删除这个模型映射？',async function(){try{await api('/api/mappings/'+encodeURIComponent(id),{method:'DELETE'});closeModal();toast('映射已删除');await loadAll();renderAvailable()}catch(e){toast(e.message)}})}
@@ -463,13 +520,17 @@ function testMapping(id){
   var isImage=m.type==='image';
   var defaultPrompt=isImage?'一只在草地上奔跑的柯基犬，卡通风格':'请用一句话回复：连接测试成功。';
   var body='<div class="field"><label for="test-prompt">测试提示词</label><textarea id="test-prompt" placeholder="输入一句测试内容">'+esc(defaultPrompt)+'</textarea></div>'
-    +(isImage?'<div class="field"><label for="test-size">图片尺寸</label><input id="test-size" type="text" placeholder="1024x1024" value="1024x1024"></div>':'')
+    +(isImage?'<div class="field"><label for="test-size">图片尺寸</label><input id="test-size" type="text" placeholder="1024x1024" value="1024x1024"></div>'+(m.imageApi==='genai'?'<div class="row"><div class="field" style="flex:1;min-width:120px"><label for="test-steps">步数</label><input id="test-steps" type="number" value="4" min="1"></div><div class="field" style="flex:1;min-width:120px"><label for="test-seed">种子</label><input id="test-seed" type="number" value="0"></div></div>':''):'')
     +'<div class="test-result" id="test-result">测试结果会显示在这里。</div>';
   openModal('测试 '+m.customName,body,async function(){
     var result=$('test-result');result.className='test-result';result.textContent='正在请求上游模型...';
     try{
       var payload={mappingId:id,prompt:$('test-prompt').value.trim()};
-      if(isImage){var sizeEl=$('test-size');if(sizeEl)payload.size=sizeEl.value.trim()}
+      if(isImage){
+        var sizeEl=$('test-size');if(sizeEl)payload.size=sizeEl.value.trim();
+        var stepsEl=$('test-steps');if(stepsEl)payload.steps=parseInt(stepsEl.value,10);
+        var seedEl=$('test-seed');if(seedEl)payload.seed=parseInt(seedEl.value,10);
+      }
       var data=await api('/api/test',{method:'POST',body:JSON.stringify(payload)});
       result.className='test-result ok';
       if(data.type==='image'&&data.image){
@@ -502,6 +563,8 @@ $('m-platform-btn').onclick=function(e){e.stopPropagation();setPickerOpen(!$('m-
 $('platform-picker').onclick=function(e){e.stopPropagation()};
 $('m-type-btn').onclick=function(e){e.stopPropagation();setTypePickerOpen(!$('m-type-menu').classList.contains('open'))};
 $('type-picker').onclick=function(e){e.stopPropagation()};
+$('m-api-btn').onclick=function(e){e.stopPropagation();setApiPickerOpen(!$('m-api-menu').classList.contains('open'))};
+$('api-picker').onclick=function(e){e.stopPropagation()};
 $('modal').onclick=function(e){if(e.target===$('modal'))closeModal()};
 $('theme-toggle').onclick=toggleTheme;
 $('endpoint-copy').onclick=function(e){if(e.target===$('theme-toggle'))return;copyEndpoint()};
@@ -509,12 +572,14 @@ $('endpoint-copy').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.prev
 $('login-submit').onclick=submitLogin;
 $('login-clear').onclick=clearLogin;
 $('login-key').onkeydown=function(e){if(e.key==='Enter')submitLogin()};
-document.addEventListener('click',function(){setPickerOpen(false);setTypePickerOpen(false)});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();setPickerOpen(false);setTypePickerOpen(false)}});
+document.addEventListener('click',function(){setPickerOpen(false);setTypePickerOpen(false);setApiPickerOpen(false)});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();setPickerOpen(false);setTypePickerOpen(false);setApiPickerOpen(false)}});
 initTheme();
 updateClock();
 setInterval(updateClock,30000);
 renderTypeMenu();
+renderApiMenu();
+updateImageApiVisibility();
 if(adminKey){
   verifyAdminKey().then(function(){hideLogin();loadAll()}).catch(function(){localStorage.removeItem('ai_proxy_admin_key');adminKey='';showLogin('本机保存的管理密钥已失效，请重新输入。')});
 }else{
@@ -667,6 +732,7 @@ async function validateMapping(env, input, existingId = null) {
   const originalName = cleanString(input.originalName);
   const customName = cleanString(input.customName);
   const type = cleanString(input.type) === 'image' ? 'image' : 'chat';
+  const imageApi = cleanString(input.imageApi) === 'genai' ? 'genai' : 'openai';
   if (!platformId) throw new Error('请选择平台。');
   if (!originalName) throw new Error('原始模型名不能为空。');
   if (!customName) throw new Error('自定义模型名不能为空。');
@@ -676,7 +742,7 @@ async function validateMapping(env, input, existingId = null) {
   if (mappings.some(m => m.customName === customName && m.id !== existingId)) {
     throw new Error('自定义模型名已存在，请换一个名称。');
   }
-  return { platformId, originalName, customName, type };
+  return { platformId, originalName, customName, type, imageApi };
 }
 
 async function resolveRoute(env, options) {
@@ -731,6 +797,50 @@ function extractImageResult(data) {
   return null;
 }
 
+// Legacy NVIDIA hosted "genai" invoke API (https://<host>/v1/genai/{org}/{model}).
+// The model is selected via the URL path, not a "model" body field, and the
+// request/response shape is NOT OpenAI-compatible.
+function buildGenaiInvokeUrl(platform, mapping) {
+  return `${normalizeBaseUrl(platform.baseUrl)}/v1/genai/${mapping.originalName}`;
+}
+
+function toGenaiRequestBody(input) {
+  const size = cleanString(input.size) || '1024x1024';
+  const parts = size.toLowerCase().split('x');
+  const width = parseInt(parts[0], 10) || 1024;
+  const height = parseInt(parts[1], 10) || 1024;
+  const steps = Number.isFinite(input.steps) ? input.steps : 4;
+  const samples = Number.isFinite(input.n) ? input.n : 1;
+  const seed = Number.isFinite(input.seed) ? input.seed : 0;
+  return {
+    mode: 'Image Generation',
+    prompt: cleanString(input.prompt),
+    height,
+    width,
+    steps,
+    samples,
+    seed
+  };
+}
+
+// Best-effort parsing across the response shapes we've seen from the legacy
+// genai endpoint family (Stability-style "artifacts", or an OpenAI-ish
+// "data" array, or a bare base64 "image" field).
+function extractGenaiImageResult(data) {
+  if (data && Array.isArray(data.artifacts) && data.artifacts[0] && data.artifacts[0].base64) {
+    return { kind: 'b64', value: data.artifacts[0].base64 };
+  }
+  if (data && Array.isArray(data.data) && data.data[0]) {
+    const item = data.data[0];
+    if (item.b64_json) return { kind: 'b64', value: item.b64_json };
+    if (item.url) return { kind: 'url', value: item.url };
+    if (item.base64) return { kind: 'b64', value: item.base64 };
+  }
+  if (data && typeof data.image === 'string') return { kind: 'b64', value: data.image };
+  if (data && typeof data.b64_json === 'string') return { kind: 'b64', value: data.b64_json };
+  return null;
+}
+
 async function runMappingTest(env, input) {
   const mappingId = cleanString(input.mappingId);
   const customName = cleanString(input.customName);
@@ -739,26 +849,33 @@ async function runMappingTest(env, input) {
   const prompt = cleanString(input.prompt) || (isImage ? '一只在草地上奔跑的柯基犬，卡通风格' : '请用一句话回复：连接测试成功。');
 
   if (isImage) {
-    const res = await fetch(buildUpstreamUrl(platform, '/images/generations'), {
-      method: 'POST',
-      headers: upstreamJsonHeaders(platform),
-      body: JSON.stringify({
-        model: mapping.originalName,
-        prompt,
-        n: 1,
-        size: cleanString(input.size) || '1024x1024',
-        response_format: 'b64_json'
-      })
-    });
+    const isGenai = mapping.imageApi === 'genai';
+    const res = isGenai
+      ? await fetch(buildGenaiInvokeUrl(platform, mapping), {
+          method: 'POST',
+          headers: upstreamJsonHeaders(platform),
+          body: JSON.stringify(toGenaiRequestBody({ prompt, size: input.size, steps: input.steps, n: input.n, seed: input.seed }))
+        })
+      : await fetch(buildUpstreamUrl(platform, '/images/generations'), {
+          method: 'POST',
+          headers: upstreamJsonHeaders(platform),
+          body: JSON.stringify({
+            model: mapping.originalName,
+            prompt,
+            n: 1,
+            size: cleanString(input.size) || '1024x1024',
+            response_format: 'b64_json'
+          })
+        });
     const text = await res.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch (err) {}
     if (!res.ok) {
-      const message = (data && data.error && (data.error.message || data.error)) || text || `上游返回 ${res.status}`;
+      const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `上游返回 ${res.status}`;
       throw new Error(String(message).slice(0, 500));
     }
-    const image = extractImageResult(data);
-    if (!image) throw new Error('上游没有返回图片数据，可能该模型的接口不是 OpenAI 兼容格式，请检查 build.nvidia.com 上该模型的 API Reference。');
+    const image = isGenai ? extractGenaiImageResult(data) : extractImageResult(data);
+    if (!image) throw new Error('上游没有返回可识别的图片数据，请检查该模型在 build.nvidia.com 上的 API Reference，确认接口风格和字段是否匹配。');
     return {
       ok: true,
       status: res.status,
@@ -766,6 +883,7 @@ async function runMappingTest(env, input) {
       customName: mapping.customName,
       originalName: mapping.originalName,
       type: 'image',
+      imageApi: mapping.imageApi,
       image
     };
   }
@@ -937,6 +1055,76 @@ async function handleModels(env) {
   return jsonResponse({ object: 'list', data });
 }
 
+// Dedicated handler for POST /v1/images/generations. The public-facing
+// contract stays OpenAI-style (body.model = the custom name), but internally
+// we branch per-mapping: "openai" mappings are forwarded almost as-is to the
+// upstream's own /v1/images/generations; "genai" mappings are translated into
+// the legacy https://<host>/v1/genai/{originalName} request shape (no model
+// field, prompt/height/width/steps/samples/seed) and the response is
+// normalized back into an OpenAI-style { data: [{ b64_json | url }] } body so
+// callers don't need to special-case anything.
+async function handleImageProxy(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (err) {
+    return errorResponse('Request body must be valid JSON.', 400);
+  }
+
+  const requestedModel = cleanString(body.model);
+  if (!requestedModel) return errorResponse('No model in request.', 400);
+
+  let route;
+  try {
+    route = await resolveRoute(env, { customName: requestedModel });
+  } catch (err) {
+    return errorResponse(err.message, 404, 'model_not_found');
+  }
+  const { mapping, platform } = route;
+  if (mapping.type !== 'image') {
+    return errorResponse(`Model '${requestedModel}' is not configured as an image model.`, 400, 'wrong_type');
+  }
+
+  try {
+    if (mapping.imageApi === 'genai') {
+      const upstream = await fetch(buildGenaiInvokeUrl(platform, mapping), {
+        method: 'POST',
+        headers: upstreamJsonHeaders(platform),
+        body: JSON.stringify(toGenaiRequestBody(body))
+      });
+      const text = await upstream.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch (err) {}
+      if (!upstream.ok) {
+        const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `Upstream returned ${upstream.status}`;
+        return errorResponse(String(message).slice(0, 500), upstream.status, 'upstream_error');
+      }
+      const image = extractGenaiImageResult(data);
+      if (!image) return errorResponse('Upstream did not return recognizable image data.', 502, 'upstream_error');
+      return jsonResponse({
+        created: Math.floor(Date.now() / 1000),
+        data: [image.kind === 'b64' ? { b64_json: image.value } : { url: image.value }]
+      });
+    }
+
+    const upstream = await fetch(buildUpstreamUrl(platform, '/images/generations'), {
+      method: 'POST',
+      headers: upstreamJsonHeaders(platform, request.headers.get('Accept')),
+      body: JSON.stringify({ ...body, model: mapping.originalName })
+    });
+    const responseHeaders = new Headers(upstream.headers);
+    Object.entries(CORS_HEADERS).forEach(([key, value]) => responseHeaders.set(key, value));
+    responseHeaders.set('Cache-Control', 'no-store');
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: responseHeaders
+    });
+  } catch (err) {
+    return errorResponse(`Proxy error: ${err.message}`, 502, 'proxy_error');
+  }
+}
+
 async function handleProxy(request, env, url) {
   if (request.method !== 'POST') {
     return errorResponse('Only JSON POST requests with a model field can be proxied.', 405, 'method_not_allowed');
@@ -1013,6 +1201,12 @@ export default {
       const auth = await requireClient(request, env);
       if (!auth.ok) return auth.response;
       return handleModels(env);
+    }
+
+    if (path === '/v1/images/generations' && request.method === 'POST') {
+      const auth = await requireClient(request, env);
+      if (!auth.ok) return auth.response;
+      return handleImageProxy(request, env);
     }
 
     if (path.startsWith('/v1/') || path === '/v1') {
