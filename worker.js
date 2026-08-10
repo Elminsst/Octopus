@@ -356,12 +356,22 @@ function setPickerOpen(open){
   $('m-platform-btn').classList.toggle('open',open);
   $('m-platform-btn').setAttribute('aria-expanded',open?'true':'false');
 }
+function guessImageApiForPlatform(pid){
+  var p=platforms.find(function(x){return x.id===pid});
+  if(!p)return 'openai';
+  var host='';
+  try{host=new URL(p.baseUrl).host.toLowerCase()}catch(e){host=String(p.baseUrl||'').toLowerCase()}
+  if(host.indexOf('ai.api.nvidia.com')!==-1)return 'genai';
+  if(host.indexOf('integrate.api.nvidia.com')!==-1)return 'openai';
+  return 'openai';
+}
 function selectPlatform(id){
   selectedPlatformId=id;
   availableModels=[];
   availablePlatform='';
   setPickerOpen(false);
   renderPlatformSelect();
+  selectImageApi(guessImageApiForPlatform(id));
   renderAvailable();
 }
 function renderTypeMenu(){
@@ -836,7 +846,19 @@ function extractGenaiImageResult(data) {
     if (item.url) return { kind: 'url', value: item.url };
     if (item.base64) return { kind: 'b64', value: item.base64 };
   }
-  if (data && typeof data.image === 'string') return { kind: 'b64', value: data.image };
+  if (data && Array.isArray(data.images) && data.images[0]) {
+    const item = data.images[0];
+    if (typeof item === 'string') return { kind: 'b64', value: item };
+    if (item.data) return { kind: 'b64', value: item.data };
+    if (item.base64) return { kind: 'b64', value: item.base64 };
+    if (item.b64_json) return { kind: 'b64', value: item.b64_json };
+    if (item.url) return { kind: 'url', value: item.url };
+  }
+  if (data && data.image) {
+    if (typeof data.image === 'string') return { kind: 'b64', value: data.image };
+    if (data.image.bytes) return { kind: 'b64', value: data.image.bytes };
+    if (data.image.base64) return { kind: 'b64', value: data.image.base64 };
+  }
   if (data && typeof data.b64_json === 'string') return { kind: 'b64', value: data.b64_json };
   return null;
 }
@@ -1049,7 +1071,8 @@ async function handleModels(env) {
       id: mapping.customName,
       object: 'model',
       created: 0,
-      owned_by: platformNames[mapping.platformId] || 'unknown'
+      owned_by: platformNames[mapping.platformId] || 'unknown',
+      metadata: { type: mapping.type || 'chat', imageApi: mapping.type === 'image' ? (mapping.imageApi || 'openai') : undefined }
     });
   }
   return jsonResponse({ object: 'list', data });
