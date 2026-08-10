@@ -255,16 +255,6 @@ var platforms=[],mappings=[],availableModels=[],availablePlatform='',selectedPla
 var selectedMappingIds={};
 var selectedMappingType='chat';
 var MAPPING_TYPES=[{id:'chat',label:'对话模型（Chat）'},{id:'image',label:'绘图模型（Image）'}];
-// NVIDIA 的 /v1/models 目录接口不会返回绘图模型，只能手动列出已知的常用绘图模型 ID（均来自
-// build.nvidia.com 各模型详情页 API Reference 中的 model 字段）。想用列表外的模型，仍可以在
-// “原始模型名”里手动输入。
-var NVIDIA_IMAGE_MODELS=[
-  {id:'black-forest-labs/flux.1-dev',label:'FLUX.1-dev'},
-  {id:'black-forest-labs/flux.1-schnell',label:'FLUX.1-schnell'},
-  {id:'black-forest-labs/flux.1-kontext-dev',label:'FLUX.1-Kontext-dev（图片编辑）'},
-  {id:'black-forest-labs/flux.2-klein-4b',label:'FLUX.2-klein-4B'},
-  {id:'stabilityai/stable-diffusion-3.5-large',label:'Stable Diffusion 3.5 Large'}
-];
 
 function $(id){return document.getElementById(id)}
 function esc(v){var d=document.createElement('div');d.textContent=v==null?'':String(v);return d.innerHTML}
@@ -385,7 +375,6 @@ function selectMappingType(id){
   $('m-type-label').textContent=t?t.label:'类型';
   setTypePickerOpen(false);
   renderTypeMenu();
-  renderAvailable();
 }
 function typeLabel(type){var t=MAPPING_TYPES.find(function(x){return x.id===type});return t?t.label:'对话模型（Chat）'}
 function typePath(type){return type==='image'?'/v1/images/generations':'/v1/chat/completions'}
@@ -423,19 +412,6 @@ function renderTestModels(){
 }
 function renderAvailable(){
   var box=$('available-models');var pid=selectedPlatformId;var q=$('model-search').value.trim().toLowerCase();
-  if(selectedMappingType==='image'){
-    var existingImg={};mappings.forEach(function(m){if(m.platformId===pid)existingImg[m.originalName]=m.customName});
-    var imgRows=NVIDIA_IMAGE_MODELS.filter(function(x){return !q||x.id.toLowerCase().indexOf(q)!==-1||x.label.toLowerCase().indexOf(q)!==-1});
-    if(!imgRows.length){box.innerHTML=empty('内置列表里没有匹配的绘图模型，可直接在“原始模型名”手动输入完整 ID。');return}
-    box.innerHTML='';
-    imgRows.forEach(function(x){
-      var b=document.createElement('button');b.className='model-row';b.type='button';b.setAttribute('data-model',x.id);
-      b.innerHTML='<strong>'+esc(x.label)+(existingImg[x.id]?'<span class="badge">已映射 '+esc(existingImg[x.id])+'</span>':'')+'</strong><span>'+esc(x.id)+'</span>';
-      b.onclick=function(){$('m-original').value=x.id;document.querySelectorAll('.model-row').forEach(function(y){y.classList.remove('sel')});b.classList.add('sel')};
-      box.appendChild(b);
-    });
-    return;
-  }
   if(!availableModels.length){box.innerHTML=empty(pid?'点击“刷新模型”拉取上游列表。':'先选择一个渠道。');return}
   var existing={};mappings.forEach(function(m){if(m.platformId===pid)existing[m.originalName]=m.customName});
   var rows=availableModels.filter(function(m){return !q||m.toLowerCase().indexOf(q)!==-1});
