@@ -820,7 +820,6 @@ function toGenaiRequestBody(input) {
   const width = parseInt(parts[0], 10) || 1024;
   const height = parseInt(parts[1], 10) || 1024;
   const steps = Number.isFinite(input.steps) ? input.steps : 4;
-  const samples = Number.isFinite(input.n) ? input.n : 1;
   const seed = Number.isFinite(input.seed) ? input.seed : 0;
   return {
     mode: 'Image Generation',
@@ -828,7 +827,7 @@ function toGenaiRequestBody(input) {
     height,
     width,
     steps,
-    samples,
+    samples: 1, // NVIDIA's genai preview endpoints only accept samples=1
     seed
   };
 }
