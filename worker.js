@@ -12,7 +12,7 @@ body[data-theme="light"]{--bg:#f6f4ef;--page-bg:linear-gradient(145deg,#fbfaf7 0
 html{min-height:100%;background:#111316}
 body{min-height:100vh;font-family:Inter,'SF Pro Display',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--text);background:var(--page-bg);-webkit-tap-highlight-color:transparent}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;background:var(--grid-bg);background-size:44px 44px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.85),rgba(0,0,0,.18));}
-button,input,textarea{font:inherit}
+button,input,textarea,select{font:inherit}
 button{touch-action:manipulation}
 .app{width:min(1200px,100%);margin:0 auto;padding:26px;padding-left:max(26px,env(safe-area-inset-left));padding-right:max(26px,env(safe-area-inset-right));padding-top:max(26px,env(safe-area-inset-top));padding-bottom:max(26px,env(safe-area-inset-bottom))}
 .hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;align-items:center;min-height:230px;margin-bottom:18px;padding:34px 36px;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,var(--panel-strong),var(--panel));box-shadow:var(--shadow);backdrop-filter:blur(22px)}
@@ -37,7 +37,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
 .tabs{display:flex;gap:8px;margin:18px 0;overflow-x:auto;padding:5px;border:1px solid var(--line);border-radius:18px;background:var(--panel);backdrop-filter:blur(18px);width:max-content;max-width:100%}
 .tab{border:0;border-radius:13px;background:transparent;color:var(--muted);padding:11px 18px;cursor:pointer;font-size:13px;font-weight:720;white-space:nowrap}
 .tab:hover{color:var(--text);background:rgba(255,255,255,.08)}
-.tab:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible,.model-row:focus-visible,.picker-btn:focus-visible,.picker-option:focus-visible,.endpoint:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.tab:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.model-row:focus-visible,.picker-btn:focus-visible,.picker-option:focus-visible,.endpoint:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .tab.on{background:rgba(255,255,255,.16);color:var(--text);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
 .panel{display:none}
 .panel.on{display:block}
@@ -49,10 +49,10 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
 .hint{color:var(--soft);font-size:12px;line-height:1.6;margin-top:-6px;margin-bottom:14px}
 .field{margin-bottom:13px}
 .field label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}
-.field input,.field textarea{width:100%;border:1px solid var(--control-border);border-radius:12px;background:var(--control-bg);color:var(--text);padding:11px 12px;font-size:13px;transition:border-color .15s,background .15s,box-shadow .15s}
+.field input,.field textarea,.field select{width:100%;border:1px solid var(--control-border);border-radius:12px;background:var(--control-bg);color:var(--text);padding:11px 12px;font-size:13px;transition:border-color .15s,background .15s,box-shadow .15s}
 .field textarea{min-height:110px;resize:vertical;line-height:1.6}
 .field input::placeholder,.field textarea::placeholder{color:var(--control-placeholder)}
-.field input:focus,.field textarea:focus{border-color:var(--cyan);background:var(--control-bg);box-shadow:0 0 0 4px color-mix(in srgb,var(--cyan) 16%,transparent)}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--cyan);background:var(--control-bg);box-shadow:0 0 0 4px color-mix(in srgb,var(--cyan) 16%,transparent)}
 .picker{position:relative}
 .picker-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--control-border);border-radius:12px;background:var(--control-bg);color:var(--text);padding:11px 12px;cursor:pointer;font-size:13px;text-align:left;transition:border-color .15s,box-shadow .15s}
 .picker-btn.open{border-color:var(--cyan);box-shadow:0 0 0 4px color-mix(in srgb,var(--cyan) 16%,transparent)}
@@ -89,10 +89,12 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
 .toolbar .field{flex:1;min-width:220px;margin-bottom:0}
 .search{margin:14px 0}
 .model-box{max-height:380px;overflow:auto;padding-right:4px}
-.model-row{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card-bg) 82%,transparent);backdrop-filter:blur(16px);color:var(--text);padding:12px;margin-bottom:8px;cursor:pointer}
+.model-row-wrap{position:relative;margin-bottom:8px}
+.model-row{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card-bg) 82%,transparent);backdrop-filter:blur(16px);color:var(--text);padding:12px;padding-right:70px;cursor:pointer}
 .model-row:hover,.model-row.sel{border-color:rgba(114,215,210,.6);background:color-mix(in srgb,var(--cyan) 10%,var(--card-bg))}
 .model-row strong{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .model-row span{display:block;margin-top:4px;color:var(--soft);font-size:11px}
+.model-row-del{position:absolute;right:10px;top:10px;border:1px solid var(--control-border);background:var(--control-bg);color:var(--red);border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer}
 .badge{display:inline-flex;align-items:center;border:1px solid rgba(244,199,107,.38);background:rgba(244,199,107,.12);color:#ffe1a0;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:6px}
 .empty{border:1px dashed var(--line-strong);border-radius:16px;color:var(--soft);padding:28px;text-align:center;font-size:13px;background:var(--card-bg)}
 .workbench{display:block}
@@ -160,6 +162,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
         <div class="endpoint-head"><span>API 端点</span></div>
         <div class="endpoint-copy"><code id="endpoint-url"></code></div>
       </div>
+      <div style="color:var(--soft);font-size:10px">build 2026-08-12-c</div>
     </div>
   </section>
 
@@ -196,18 +199,24 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
           <div class="field"><label for="m-original">原始模型名</label><input id="m-original" type="text" placeholder="从右侧选择，或手动输入"></div>
           <div class="field"><label for="m-custom">自定义模型名</label><input id="m-custom" type="text" placeholder="例如：fast-gpt-4o"></div>
           <div class="field"><label id="m-type-title">类型</label><div class="picker" id="type-picker"><button class="picker-btn" id="m-type-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-type-title m-type-label"><span class="picker-label" id="m-type-label">对话模型（Chat）</span><span class="chev">▼</span></button><div class="picker-menu" id="m-type-menu" role="listbox" aria-labelledby="m-type-title"></div></div></div>
-          <div class="field" id="image-api-field" style="display:none"><label id="m-api-title">绘图接口风格</label><div class="picker" id="api-picker"><button class="picker-btn" id="m-api-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-api-title m-api-label"><span class="picker-label" id="m-api-label">OpenAI 兼容（/v1/images/generations）</span><span class="chev">▼</span></button><div class="picker-menu" id="m-api-menu" role="listbox" aria-labelledby="m-api-title"></div></div><p class="hint" style="margin-top:8px;margin-bottom:0">新版 NVIDIA 网关（如 integrate.api.nvidia.com）选 OpenAI 兼容；老式 ai.api.nvidia.com 的 /v1/genai/[model] 调用方式选传统 genai 端点。</p></div>
+          <div class="field" id="image-api-field" style="display:none">
+            <label id="m-api-title">绘图接口风格</label>
+            <div class="picker" id="api-picker"><button class="picker-btn" id="m-api-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="m-api-title m-api-label"><span class="picker-label" id="m-api-label">OpenAI 兼容（/v1/images/generations）</span><span class="chev">▼</span></button><div class="picker-menu" id="m-api-menu" role="listbox" aria-labelledby="m-api-title"></div></div>
+            <p class="hint" style="margin-top:8px;margin-bottom:0">新版 NVIDIA 网关（如 integrate.api.nvidia.com）选 OpenAI 兼容；老式 ai.api.nvidia.com 的 /v1/genai/[model] 调用方式选传统 genai 端点。</p>
+          </div>
+          <div class="field" id="custom-image-model-field" style="display:none">
+            <label id="cim-title">添加自定义绘图模型</label>
+            <p class="hint" style="margin-top:-6px">NVIDIA 的 /v1/models 目录不会返回绘图模型。内置列表之外的模型可以在这里登记一次，会存下来供右侧列表和以后新建映射时复用，无需改代码重新部署。</p>
+            <div class="row" style="align-items:stretch">
+              <input id="cim-id" type="text" placeholder="模型 ID，例如 qwen/qwen-image" style="flex:1;min-width:180px">
+              <input id="cim-label" type="text" placeholder="显示名（可选）" style="flex:1;min-width:120px">
+              <button class="btn secondary small" id="cim-add" type="button">添加到列表</button>
+            </div>
+          </div>
           <div class="row">
             <button class="btn success" id="add-mapping">保存映射</button>
             <button class="btn secondary" id="refresh-models" type="button">刷新模型</button>
-          </div>
-          <div class="field" id="add-image-model-field" style="display:none">
-            <label>不在列表里？手动登记一个绘图模型</label>
-            <div class="row">
-              <input id="new-image-id" type="text" placeholder="模型 ID，如 org/model-name" style="flex:2;min-width:160px;border:1px solid var(--control-border);border-radius:12px;background:var(--control-bg);color:var(--text);padding:11px 12px;font-size:13px">
-              <input id="new-image-label" type="text" placeholder="显示名称（可选）" style="flex:1;min-width:120px;border:1px solid var(--control-border);border-radius:12px;background:var(--control-bg);color:var(--text);padding:11px 12px;font-size:13px">
-              <button class="btn secondary small" id="add-image-model-btn" type="button">加入列表</button>
-            </div>
+            <button class="btn secondary" id="discover-models-btn" type="button" style="display:none">从 NVIDIA 目录发现</button>
           </div>
         </div>
       </div>
@@ -266,9 +275,9 @@ var selectedMappingType='chat';
 var MAPPING_TYPES=[{id:'chat',label:'对话模型（Chat）'},{id:'image',label:'绘图模型（Image）'}];
 var selectedImageApi='openai';
 var IMAGE_API_STYLES=[{id:'openai',label:'OpenAI 兼容（/v1/images/generations）'},{id:'genai',label:'传统 genai 端点（/v1/genai/[model]）'}];
-// NVIDIA 的 /v1/models 目录接口不会返回绘图模型，只能手动列出已知的常用绘图模型 ID（均来自
-// build.nvidia.com 各模型详情页 API Reference 中的 model 字段）。这份是内置默认值；用户还可以
-// 在面板里追加自定义条目（存到 KV 里的 customImageModels，见 /api/image-models），不用改代码重新部署。
+// NVIDIA 的 /v1/models 目录接口不会返回绘图模型，这份是内置默认值（均来自 build.nvidia.com 各模型
+// 详情页 API Reference 中确认过的 model 字段）。用户还可以在面板里追加自定义条目，存在 KV 的
+// imageModelCatalog 里（通过 /api/image-models 增删查），不用改代码重新部署。
 var NVIDIA_IMAGE_MODELS=[
   {id:'black-forest-labs/flux.1-dev',label:'FLUX.1-dev'},
   {id:'black-forest-labs/flux.1-schnell',label:'FLUX.1-schnell'},
@@ -276,11 +285,12 @@ var NVIDIA_IMAGE_MODELS=[
   {id:'black-forest-labs/flux.2-klein-4b',label:'FLUX.2-klein-4B'},
   {id:'stabilityai/stable-diffusion-3.5-large',label:'Stable Diffusion 3.5 Large'}
 ];
-var customImageModels=[]; // 从 KV 里加载的、用户手动登记/自动学到的绘图模型
+var customImageModels=[]; // 从 KV 加载的自定义绘图模型条目：{id, modelId, label}
+
 function allImageModels(){
   var seen={};var out=[];
-  NVIDIA_IMAGE_MODELS.forEach(function(x){if(!seen[x.id]){seen[x.id]=true;out.push({id:x.id,label:x.label,custom:false})}});
-  customImageModels.forEach(function(x){if(!seen[x.id]){seen[x.id]=true;out.push({id:x.id,label:x.label||x.id,custom:true})}});
+  NVIDIA_IMAGE_MODELS.forEach(function(x){if(!seen[x.id]){seen[x.id]=true;out.push({modelId:x.id,label:x.label,custom:false,catalogId:null})}});
+  customImageModels.forEach(function(x){if(!seen[x.modelId]){seen[x.modelId]=true;out.push({modelId:x.modelId,label:x.label||x.modelId,custom:true,catalogId:x.id})}});
   return out;
 }
 
@@ -323,7 +333,7 @@ async function loadAll(){
   try{
     platforms=await api('/api/platforms');
     mappings=await api('/api/mappings');
-    try{customImageModels=await api('/api/image-models')}catch(e){customImageModels=[]}
+    try{ customImageModels=await api('/api/image-models') }catch(e){ customImageModels=[] }
     Object.keys(selectedMappingIds).forEach(function(id){if(!mappings.some(function(m){return m.id===id}))delete selectedMappingIds[id]});
     renderStats();renderPlatforms();renderPlatformSelect();renderTestModels();renderAvailable();
   }catch(e){$('platform-list').innerHTML=empty(e.message);$('test-list').innerHTML=empty(e.message)}
@@ -418,9 +428,10 @@ function selectMappingType(id){
   updateImageApiVisibility();
 }
 function updateImageApiVisibility(){
-  var on=selectedMappingType==='image';
-  $('image-api-field').style.display=on?'':'none';
-  $('add-image-model-field').style.display=on?'':'none';
+  var show=selectedMappingType==='image';
+  $('image-api-field').style.display=show?'':'none';
+  $('custom-image-model-field').style.display=show?'':'none';
+  $('discover-models-btn').style.display=show?'':'none';
 }
 function renderApiMenu(){
   var menu=$('m-api-menu');menu.innerHTML='';
@@ -485,14 +496,21 @@ function renderAvailable(){
   var box=$('available-models');var pid=selectedPlatformId;var q=$('model-search').value.trim().toLowerCase();
   if(selectedMappingType==='image'){
     var existingImg={};mappings.forEach(function(m){if(m.platformId===pid)existingImg[m.originalName]=m.customName});
-    var imgRows=allImageModels().filter(function(x){return !q||x.id.toLowerCase().indexOf(q)!==-1||x.label.toLowerCase().indexOf(q)!==-1});
-    if(!imgRows.length){box.innerHTML=empty('列表里没有匹配的绘图模型，可以在上面“手动登记”一个，或直接在“原始模型名”手动输入完整 ID。');return}
+    var imgRows=allImageModels().filter(function(x){return !q||x.modelId.toLowerCase().indexOf(q)!==-1||x.label.toLowerCase().indexOf(q)!==-1});
+    if(!imgRows.length){box.innerHTML=empty('没有匹配的绘图模型，可以在上方“添加自定义绘图模型”里加一个，或直接在“原始模型名”手动输入完整 ID。');return}
     box.innerHTML='';
     imgRows.forEach(function(x){
-      var b=document.createElement('button');b.className='model-row';b.type='button';b.setAttribute('data-model',x.id);
-      b.innerHTML='<strong>'+esc(x.label)+(x.custom?'<span class="badge">自定义</span>':'')+(existingImg[x.id]?'<span class="badge">已映射 '+esc(existingImg[x.id])+'</span>':'')+'</strong><span>'+esc(x.id)+'</span>';
-      b.onclick=function(){$('m-original').value=x.id;document.querySelectorAll('.model-row').forEach(function(y){y.classList.remove('sel')});b.classList.add('sel')};
-      box.appendChild(b);
+      var wrap=document.createElement('div');wrap.className='model-row-wrap';
+      var b=document.createElement('button');b.className='model-row';b.type='button';b.setAttribute('data-model',x.modelId);
+      b.innerHTML='<strong>'+esc(x.label)+(x.custom?'<span class="badge">自定义</span>':'')+(existingImg[x.modelId]?'<span class="badge">已映射 '+esc(existingImg[x.modelId])+'</span>':'')+'</strong><span>'+esc(x.modelId)+'</span>';
+      b.onclick=function(){$('m-original').value=x.modelId;document.querySelectorAll('.model-row').forEach(function(y){y.classList.remove('sel')});b.classList.add('sel')};
+      wrap.appendChild(b);
+      if(x.custom){
+        var del=document.createElement('button');del.className='model-row-del';del.type='button';del.textContent='删除';
+        del.onclick=function(e){e.stopPropagation();deleteCustomImageModel(x.catalogId)};
+        wrap.appendChild(del);
+      }
+      box.appendChild(wrap);
     });
     return;
   }
@@ -507,6 +525,44 @@ function renderAvailable(){
     b.onclick=function(){$('m-original').value=m;document.querySelectorAll('.model-row').forEach(function(x){x.classList.remove('sel')});b.classList.add('sel')};
     box.appendChild(b);
   });
+}
+async function addCustomImageModel(){
+  var modelId=$('cim-id').value.trim();
+  var label=$('cim-label').value.trim();
+  if(!modelId){toast('请输入模型 ID');return}
+  try{
+    await api('/api/image-models',{method:'POST',body:JSON.stringify({modelId:modelId,label:label})});
+    $('cim-id').value='';$('cim-label').value='';
+    customImageModels=await api('/api/image-models');
+    renderAvailable();
+    toast('已添加到绘图模型列表');
+  }catch(e){toast(e.message)}
+}
+async function deleteCustomImageModel(catalogId){
+  try{
+    await api('/api/image-models/'+encodeURIComponent(catalogId),{method:'DELETE'});
+    customImageModels=await api('/api/image-models');
+    renderAvailable();
+    toast('已删除');
+  }catch(e){toast(e.message)}
+}
+async function discoverImageModels(){
+  var btn=$('discover-models-btn');var oldText=btn.textContent;btn.textContent='抓取中…';btn.disabled=true;
+  try{
+    var data=await api('/api/image-models/discover');
+    var found=(data.models||[]);
+    var known={};NVIDIA_IMAGE_MODELS.forEach(function(x){known[x.id]=true});customImageModels.forEach(function(x){known[x.modelId]=true});
+    var candidates=found.filter(function(id){return !known[id]});
+    if(!candidates.length){toast(found.length?'抓到的模型都已经在列表里了':'没抓到新模型，可能页面结构变了，建议手动添加');return}
+    var checklist=candidates.map(function(id){return '<label style="display:flex;gap:8px;align-items:center;padding:6px 0;font-size:13px"><input type="checkbox" class="discover-check" value="'+esc(id)+'" checked> '+esc(id)+'</label>'}).join('');
+    openModal('从 NVIDIA 目录发现的绘图模型','<p class="hint" style="margin-bottom:10px">这是从 build.nvidia.com/models 页面抓取的候选列表（实验性功能，可能包含误判，导入前请自行核对模型 ID 是否真实存在）。勾选要加入自定义列表的模型：</p><div style="max-height:320px;overflow:auto">'+checklist+'</div>',async function(){
+      var checked=Array.prototype.slice.call(document.querySelectorAll('.discover-check:checked')).map(function(c){return c.value});
+      for(var i=0;i<checked.length;i++){try{await api('/api/image-models',{method:'POST',body:JSON.stringify({modelId:checked[i],label:checked[i]})})}catch(e){}}
+      customImageModels=await api('/api/image-models');
+      closeModal();renderAvailable();toast('已导入 '+checked.length+' 个模型');
+    },'导入选中');
+  }catch(e){toast(e.message)}
+  finally{btn.textContent=oldText;btn.disabled=false}
 }
 async function addPlatform(){
   var body={name:$('p-name').value.trim(),baseUrl:$('p-url').value.trim(),apiKey:$('p-key').value.trim()};
@@ -529,35 +585,16 @@ async function refreshModels(){
 async function addMapping(){
   var body={platformId:selectedPlatformId,originalName:$('m-original').value.trim(),customName:$('m-custom').value.trim(),type:selectedMappingType,imageApi:selectedImageApi};
   if(!body.platformId||!body.originalName||!body.customName){toast('请填写完整映射信息');return}
-  try{
-    await api('/api/mappings',{method:'POST',body:JSON.stringify(body)});
-    if(body.type==='image'&&!allImageModels().some(function(x){return x.id===body.originalName})){
-      try{await api('/api/image-models',{method:'POST',body:JSON.stringify({id:body.originalName,label:body.originalName})});customImageModels=await api('/api/image-models')}catch(e){}
-    }
-    $('m-original').value='';$('m-custom').value='';toast('映射已添加');await loadAll();renderAvailable()
-  }catch(e){toast(e.message)}
-}
-async function registerImageModel(){
-  var id=$('new-image-id').value.trim();
-  if(!id){toast('请填写模型 ID');return}
-  var label=$('new-image-label').value.trim()||id;
-  try{
-    await api('/api/image-models',{method:'POST',body:JSON.stringify({id:id,label:label})});
-    customImageModels=await api('/api/image-models');
-    $('new-image-id').value='';$('new-image-label').value='';
-    toast('已加入绘图模型列表');
-    renderAvailable();
-  }catch(e){toast(e.message)}
+  try{await api('/api/mappings',{method:'POST',body:JSON.stringify(body)});$('m-original').value='';$('m-custom').value='';toast('映射已添加');await loadAll();renderAvailable()}catch(e){toast(e.message)}
 }
 function editMapping(idx){
   var m=mappings[idx];
   var typeOptions=MAPPING_TYPES.map(function(t){return '<option value="'+t.id+'"'+(t.id===m.type?' selected':'')+'>'+esc(t.label)+'</option>'}).join('');
   var apiOptions=IMAGE_API_STYLES.map(function(t){return '<option value="'+t.id+'"'+(t.id===(m.imageApi||'openai')?' selected':'')+'>'+esc(t.label)+'</option>'}).join('');
-  var selectCss='width:100%;border:1px solid var(--control-border);border-radius:12px;background:var(--control-bg);color:var(--text);padding:11px 12px;font-size:13px';
   var body='<div class="field"><label>原始模型</label><input type="text" value="'+esc(m.originalName)+'" disabled></div>'
     +'<div class="field"><label for="edit-custom">自定义模型名</label><input id="edit-custom" type="text" value="'+esc(m.customName)+'"></div>'
-    +'<div class="field"><label for="edit-type">类型</label><select id="edit-type" style="'+selectCss+'">'+typeOptions+'</select></div>'
-    +'<div class="field" id="edit-api-field" style="'+(m.type==='image'?'':'display:none')+'"><label for="edit-api">绘图接口风格</label><select id="edit-api" style="'+selectCss+'">'+apiOptions+'</select></div>';
+    +'<div class="field"><label for="edit-type">类型</label><select id="edit-type">'+typeOptions+'</select></div>'
+    +'<div class="field" id="edit-api-field" style="'+(m.type==='image'?'':'display:none')+'"><label for="edit-api">绘图接口风格</label><select id="edit-api">'+apiOptions+'</select></div>';
   openModal('编辑模型映射',body,async function(){
     try{
       await api('/api/mappings/'+encodeURIComponent(m.id),{method:'PUT',body:JSON.stringify({customName:$('edit-custom').value.trim(),type:$('edit-type').value,imageApi:$('edit-api')?$('edit-api').value:m.imageApi})});
@@ -613,11 +650,12 @@ document.querySelectorAll('.tab').forEach(function(tab){
 });
 $('endpoint-url').textContent=base;
 $('add-platform').onclick=addPlatform;$('refresh-models').onclick=refreshModels;$('add-mapping').onclick=addMapping;
-$('add-image-model-btn').onclick=registerImageModel;
 $('model-search').oninput=renderAvailable;
 $('test-search').oninput=renderTestModels;
 $('select-all-models').onclick=toggleSelectAllModels;
 $('bulk-delete-models').onclick=bulkDeleteMappings;
+$('cim-add').onclick=addCustomImageModel;
+$('discover-models-btn').onclick=discoverImageModels;
 $('m-platform-btn').onclick=function(e){e.stopPropagation();setPickerOpen(!$('m-platform-menu').classList.contains('open'))};
 $('platform-picker').onclick=function(e){e.stopPropagation()};
 $('m-type-btn').onclick=function(e){e.stopPropagation();setTypePickerOpen(!$('m-type-menu').classList.contains('open'))};
@@ -731,10 +769,48 @@ async function getMappings(env) {
   return readList(env, 'modelMappings');
 }
 
-async function getImageCatalog(env) {
+async function getImageModelCatalog(env) {
   return readList(env, 'imageModelCatalog');
 }
 
+function validateImageModelEntry(input) {
+  const modelId = cleanString(input.modelId);
+  const label = cleanString(input.label) || modelId;
+  if (!modelId) throw new Error('模型 ID 不能为空。');
+  return { modelId, label };
+}
+
+// Best-effort discovery of NVIDIA's image-generation models by scraping the
+// public build.nvidia.com/models catalog page (there is no documented JSON
+// API for this, unlike /v1/models for chat models). This is inherently
+// fragile — it depends on NVIDIA's current page markup — so results are
+// meant to be reviewed by a human before being imported into the catalog.
+async function discoverNvidiaImageModels() {
+  const urls = [
+    'https://build.nvidia.com/models?filters=usecase%3Ausecase_image_gen',
+    'https://build.nvidia.com/models?filters=usecase%3Ausecase_text_to_image'
+  ];
+  const ignoredFirstSegments = new Set(['models', 'settings', 'explore', 'api-keys', 'discover', 'docs', 'legal', 'about', 'pricing', '_next']);
+  const found = new Set();
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { headers: { Accept: 'text/html' } });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const re = /href="\/([a-z0-9][a-z0-9._-]*)\/([a-z0-9][a-z0-9._-]*)"/gi;
+      let m;
+      while ((m = re.exec(html))) {
+        const org = m[1].toLowerCase();
+        const slug = m[2].toLowerCase();
+        if (ignoredFirstSegments.has(org)) continue;
+        found.add(`${org}/${slug}`);
+      }
+    } catch (err) {
+      // Ignore a single failed source; other URL may still succeed.
+    }
+  }
+  return Array.from(found).sort();
+}
 
 async function readJson(request) {
   try {
@@ -863,7 +939,9 @@ function extractImageResult(data) {
 
 // Legacy NVIDIA hosted "genai" invoke API (https://<host>/v1/genai/{org}/{model}).
 // The model is selected via the URL path, not a "model" body field, and the
-// request/response shape is NOT OpenAI-compatible.
+// request/response shape is NOT OpenAI-compatible. Confirmed against NVIDIA's
+// own API reference for black-forest-labs/flux.2-klein-4b: samples is fixed
+// at 1, steps ranges 1-4.
 function buildGenaiInvokeUrl(platform, mapping) {
   return `${normalizeBaseUrl(platform.baseUrl)}/v1/genai/${mapping.originalName}`;
 }
@@ -887,8 +965,8 @@ function toGenaiRequestBody(input) {
 }
 
 // Best-effort parsing across the response shapes we've seen from the legacy
-// genai endpoint family (Stability-style "artifacts", or an OpenAI-ish
-// "data" array, or a bare base64 "image" field).
+// genai endpoint family (Stability-style "artifacts", an OpenAI-ish "data"
+// array, an "images" array, or a bare base64 "image" field).
 function extractGenaiImageResult(data) {
   if (data && Array.isArray(data.artifacts) && data.artifacts[0] && data.artifacts[0].base64) {
     return { kind: 'b64', value: data.artifacts[0].base64 };
@@ -929,7 +1007,7 @@ async function runMappingTest(env, input) {
       ? await fetch(buildGenaiInvokeUrl(platform, mapping), {
           method: 'POST',
           headers: upstreamJsonHeaders(platform),
-          body: JSON.stringify(toGenaiRequestBody({ prompt, size: input.size, steps: input.steps, n: input.n, seed: input.seed }))
+          body: JSON.stringify(toGenaiRequestBody({ prompt, size: input.size, steps: input.steps, seed: input.seed }))
         })
       : await fetch(buildUpstreamUrl(platform, '/images/generations'), {
           method: 'POST',
@@ -1065,31 +1143,6 @@ async function handleApi(request, env, url) {
       return jsonResponse(await getMappings(env));
     }
 
-    if (path === '/api/image-models' && request.method === 'GET') {
-      return jsonResponse(await getImageCatalog(env));
-    }
-
-    if (path === '/api/image-models' && request.method === 'POST') {
-      const input = await readJson(request);
-      const id = cleanString(input.id);
-      const label = cleanString(input.label) || id;
-      if (!id) return errorResponse('模型 ID 不能为空。', 400);
-      const catalog = await getImageCatalog(env);
-      if (!catalog.some(m => m.id === id)) {
-        catalog.push({ id, label, createdAt: new Date().toISOString() });
-        await writeList(env, 'imageModelCatalog', catalog);
-      }
-      return jsonResponse({ id, label }, 201);
-    }
-
-    if (path === '/api/image-models/delete' && request.method === 'POST') {
-      const input = await readJson(request);
-      const id = cleanString(input.id);
-      if (!id) return errorResponse('模型 ID 不能为空。', 400);
-      await writeList(env, 'imageModelCatalog', (await getImageCatalog(env)).filter(m => m.id !== id));
-      return jsonResponse({ success: true });
-    }
-
     if (path === '/api/mappings/bulk-delete' && request.method === 'POST') {
       const body = await readJson(request);
       const ids = Array.isArray(body.ids) ? body.ids.map(cleanString).filter(Boolean) : [];
@@ -1097,6 +1150,32 @@ async function handleApi(request, env, url) {
       const selected = new Set(ids);
       await writeList(env, 'modelMappings', (await getMappings(env)).filter(m => !selected.has(m.id)));
       return jsonResponse({ success: true, deleted: ids.length });
+    }
+
+    if (path === '/api/image-models' && request.method === 'GET') {
+      return jsonResponse(await getImageModelCatalog(env));
+    }
+
+    if (path === '/api/image-models' && request.method === 'POST') {
+      const body = validateImageModelEntry(await readJson(request));
+      const list = await getImageModelCatalog(env);
+      if (list.some(x => x.modelId === body.modelId)) throw new Error('该模型 ID 已在列表中。');
+      const now = new Date().toISOString();
+      const entry = { id: makeId('img'), ...body, createdAt: now };
+      list.push(entry);
+      await writeList(env, 'imageModelCatalog', list);
+      return jsonResponse(entry, 201);
+    }
+
+    if (parts[0] === 'api' && parts[1] === 'image-models' && parts[2] && parts.length === 3 && request.method === 'DELETE') {
+      const id = decodeURIComponent(parts[2]);
+      await writeList(env, 'imageModelCatalog', (await getImageModelCatalog(env)).filter(x => x.id !== id));
+      return jsonResponse({ success: true });
+    }
+
+    if (path === '/api/image-models/discover' && request.method === 'GET') {
+      const models = await discoverNvidiaImageModels();
+      return jsonResponse({ models });
     }
 
     if (path === '/api/test' && request.method === 'POST') {
