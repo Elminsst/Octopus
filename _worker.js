@@ -162,7 +162,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
         <div class="endpoint-head"><span>API 端点</span></div>
         <div class="endpoint-copy"><code id="endpoint-url"></code></div>
       </div>
-      <div style="color:var(--soft);font-size:10px">build 2026-08-12-c</div>
+      <div style="color:var(--soft);font-size:10px">build 2026-08-12-d</div>
     </div>
   </section>
 
@@ -636,7 +636,7 @@ function testMapping(id){
       }
     }catch(e){
       result.className='test-result bad';
-      result.textContent=e.message;
+      result.textContent=(e&&e.message)?String(e.message):String(e);
     }
   },'发送测试');
 }
@@ -994,6 +994,36 @@ function extractGenaiImageResult(data) {
   return null;
 }
 
+// NVIDIA's genai endpoints often return FastAPI/Pydantic-style validation
+// errors, where "detail" is an array of {loc, msg, type} objects rather than
+// a plain string. A naive String(data.detail) collapses that into a useless
+// "[object Object]". This pulls out the actual human-readable message(s).
+function stringifyUpstreamError(data, text) {
+  if (data) {
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail)) {
+      const msgs = data.detail
+        .map(d => {
+          if (typeof d === 'string') return d;
+          if (d && (d.msg || d.message)) {
+            const loc = Array.isArray(d.loc) ? d.loc.join('.') : '';
+            return loc ? `${loc}: ${d.msg || d.message}` : (d.msg || d.message);
+          }
+          try { return JSON.stringify(d); } catch (e) { return String(d); }
+        })
+        .filter(Boolean);
+      if (msgs.length) return msgs.join('; ');
+    }
+    if (data.error) {
+      if (typeof data.error === 'string') return data.error;
+      if (data.error.message) return data.error.message;
+      try { return JSON.stringify(data.error); } catch (e) {}
+    }
+    if (data.message) return data.message;
+  }
+  return text || 'Unknown upstream error';
+}
+
 async function runMappingTest(env, input) {
   const mappingId = cleanString(input.mappingId);
   const customName = cleanString(input.customName);
@@ -1024,7 +1054,7 @@ async function runMappingTest(env, input) {
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch (err) {}
     if (!res.ok) {
-      const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `上游返回 ${res.status}`;
+      const message = stringifyUpstreamError(data, text) || `上游返回 ${res.status}`;
       throw new Error(String(message).slice(0, 500));
     }
     const image = isGenai ? extractGenaiImageResult(data) : extractImageResult(data);
@@ -1276,7 +1306,7 @@ async function handleImageProxy(request, env) {
       let data = null;
       try { data = text ? JSON.parse(text) : null; } catch (err) {}
       if (!upstream.ok) {
-        const message = (data && (data.detail || (data.error && (data.error.message || data.error)))) || text || `Upstream returned ${upstream.status}`;
+        const message = stringifyUpstreamError(data, text) || `Upstream returned ${upstream.status}`;
         return errorResponse(String(message).slice(0, 500), upstream.status, 'upstream_error');
       }
       const image = extractGenaiImageResult(data);
