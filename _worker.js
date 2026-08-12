@@ -162,7 +162,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
         <div class="endpoint-head"><span>API 端点</span></div>
         <div class="endpoint-copy"><code id="endpoint-url"></code></div>
       </div>
-      <div style="color:var(--soft);font-size:10px">build 2026-08-12-d</div>
+      <div style="color:var(--soft);font-size:10px">build 2026-08-12-e</div>
     </div>
   </section>
 
@@ -939,9 +939,11 @@ function extractImageResult(data) {
 
 // Legacy NVIDIA hosted "genai" invoke API (https://<host>/v1/genai/{org}/{model}).
 // The model is selected via the URL path, not a "model" body field, and the
-// request/response shape is NOT OpenAI-compatible. Confirmed against NVIDIA's
-// own API reference for black-forest-labs/flux.2-klein-4b: samples is fixed
-// at 1, steps ranges 1-4.
+// request/response shape is NOT OpenAI-compatible. samples is fixed at 1,
+// steps ranges 1-4. NOTE: unlike some published examples, the live endpoint
+// for flux.2-klein-4b rejects a "mode" field ("Extra inputs are not
+// permitted") -- confirmed against the actual upstream error, so it is
+// intentionally omitted here.
 function buildGenaiInvokeUrl(platform, mapping) {
   return `${normalizeBaseUrl(platform.baseUrl)}/v1/genai/${mapping.originalName}`;
 }
@@ -954,7 +956,6 @@ function toGenaiRequestBody(input) {
   const steps = Number.isFinite(input.steps) ? input.steps : 4;
   const seed = Number.isFinite(input.seed) ? input.seed : 0;
   return {
-    mode: 'Image Generation',
     prompt: cleanString(input.prompt),
     height,
     width,
