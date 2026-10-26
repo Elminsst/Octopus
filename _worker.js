@@ -162,7 +162,7 @@ h1{position:relative;z-index:1;font-size:56px;line-height:.98;font-weight:860;le
         <div class="endpoint-head"><span>API 端点</span></div>
         <div class="endpoint-copy"><code id="endpoint-url"></code></div>
       </div>
-      <div style="color:var(--soft);font-size:10px">build 2026-08-12-e</div>
+      <div style="color:var(--soft);font-size:10px">build 2026-10-26-f</div>
     </div>
   </section>
 
@@ -1158,10 +1158,18 @@ async function handleApi(request, env, url) {
       const res = await fetch(`${upstreamBaseUrl}/v1/models`, {
         headers: {
           'Authorization': `Bearer ${platform.apiKey}`,
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; OctopusRelay/1.0)'
         }
       });
-      if (!res.ok) return errorResponse(`Upstream model fetch failed with ${res.status}.`, res.status, 'upstream_error');
+      if (!res.ok) {
+        const errText = await res.text();
+        let errData = null;
+        try { errData = errText ? JSON.parse(errText) : null; } catch (e) {}
+        const reason = String(stringifyUpstreamError(errData, errText) || '').replace(/\s+/g, ' ').slice(0, 300);
+        // Use 502 (not the upstream status) so an upstream 401 is never mistaken for a bad admin key by the panel.
+        return errorResponse(`上游模型列表请求失败（HTTP ${res.status}）：${reason || '无响应内容'}`, 502, 'upstream_error');
+      }
       const data = await res.json();
       const models = (Array.isArray(data.data) ? data.data : [])
         .map(item => typeof item === 'string' ? item : item && item.id)
